@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transaction Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        table, th, td { border: 1px solid black; }
+        th, td { padding: 10px; text-align: left; }
+        form { margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Ethereum Transaction Dashboard</h1>
+    
+    <!-- Filter form -->
+    <form id="filter-form">
+        <label for="block-number">Block Number:</label>
+        <input type="number" id="block-number" name="block_number" placeholder="Enter Block Number">
+
+        <label for="pubkey">Public Key:</label>
+        <input type="text" id="pubkey" name="pubkey" placeholder="Enter Public Key">
+
+        <label for="hash">Transaction Hash:</label>
+        <input type="text" id="hash" name="hash" placeholder="Enter Transaction Hash">
+
+        <button type="submit">Apply Filter</button>
+    </form>
+
+    <!-- Table for displaying transactions -->
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Block Number</th>
+                <th>Timestamp</th>
+                <th>Fee</th>
+                <th>Transaction Hash</th>
+                <th>Public Key</th>
+            </tr>
+        </thead>
+        <tbody id="transaction-table-body">
+            <!-- Data will be dynamically added here -->
+        </tbody>
+    </table>
+
+    <script>
+        const socket = io.connect('http://localhost:5000',{transports: ['websocket'],
+        upgrade: false});  // Adjust the host/port as needed
+        
+        // Handle form submission
+        document.getElementById('filter-form').addEventListener('submit', (event) => {
+            event.preventDefault(); // Prevent form from reloading the page
+
+            // Get user input values
+            const blockNumber = document.getElementById('block-number').value;
+            const pubkey = document.getElementById('pubkey').value;
+            const hash = document.getElementById('hash').value;
+
+            // Create a filter object to send to the backend
+            const filters = {
+                block_number: blockNumber,
+                pubkey: pubkey,
+                hash: hash
+            };
+
+            // Send the filter data via WebSockets
+            socket.emit('get_transactions', filters);
+        });
+
+        // Listen for the transactions data from the server
+        socket.on('transactions_data', (transactions) => {
+            const tableBody = document.getElementById('transaction-table-body');
+            tableBody.innerHTML = ''; // Clear the table before adding new rows
+
+            // Populate the table with filtered transaction data
+            transactions.forEach(transaction => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${transaction.id}</td>
+                    <td>${transaction.block_number}</td>
+                    <td>${new Date(transaction.block_timestamp * 1000).toLocaleString()}</td>
+                    <td>${transaction.fee}</td>
+                    <td>${transaction.hash}</td>
+                    <td>${transaction.pubkey}</td>
+                `;
+                tableBody.appendChild(row);
+            });
+        });
+
+        // Optional: Handle real-time updates if your server pushes new transactions
+        socket.on('new_transaction', (transaction) => {
+            const tableBody = document.getElementById('transaction-table-body');
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${transaction.id}</td>
+                <td>${transaction.block_number}</td>
+                <td>${new Date(transaction.block_timestamp * 1000).toLocaleString()}</td>
+                <td>${transaction.fee}</td>
+                <td>${transaction.hash}</td>
+                <td>${transaction.pubkey}</td>
+            `;
+            tableBody.prepend(row); // Insert new transaction at the top
+        });
+    </script>
+</body>
+</html>
